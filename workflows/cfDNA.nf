@@ -29,7 +29,7 @@ workflow CFDNA_WORKFLOW {
         }
 
     // Create channel for BWA index
-    ch_bwa_index = channel.fromPath(params.bwa_index, checkIfExists: true)
+    ch_bwa_index = channel.fromPath(params.bwa_index, checkIfExists: true).first()
 
     // QC on raw reads
     FASTQC(ch_samplesheet)
