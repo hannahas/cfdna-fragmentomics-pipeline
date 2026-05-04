@@ -1,0 +1,5 @@
+sample,fastq_1,fastq_2,condition
+IH02_healthy,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130051_1.fastq.gz,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130051_2.fastq.gz,healthy
+IH03_healthy,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130052_1.fastq.gz,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130052_2.fastq.gz,healthy
+IC17_liver,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130016_1.fastq.gz,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130016_2.fastq.gz,cancer
+IC26_prostate,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130025_1.fastq.gz,/Users/alexanderhannah/Desktop/Github-projects/cfdna-fragmentomics-pipeline/assets/SRR2130025_2.fastq.gz,cancer

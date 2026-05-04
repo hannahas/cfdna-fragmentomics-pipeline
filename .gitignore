@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+ref/
+work/
+results/
+.nextflow/
+.nextflow.log*
+.DS_Store
+assets/SRR*.fastq.gz
