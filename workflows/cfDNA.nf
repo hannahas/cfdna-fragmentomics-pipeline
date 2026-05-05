@@ -24,7 +24,12 @@ workflow CFDNA_WORKFLOW {
         .fromPath(params.input)
         .splitCsv(header: true)
         .map { row ->
-            def meta = [id: row.sample, condition: row.condition]
+            def meta = [
+                id:        row.sample,
+                condition: row.condition,
+                disease:   row.disease,
+                sex:       row.sex
+            ]
             [ meta, file(row.fastq_1), file(row.fastq_2) ]
         }
 

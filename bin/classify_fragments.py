@@ -20,7 +20,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import LeaveOneOut, cross_val_predict
 from sklearn.metrics import roc_curve, auc, classification_report
 from sklearn.preprocessing import LabelEncoder
-
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 # ─────────────────────────────────────────────
 # 1. LOAD DATA
@@ -85,37 +86,49 @@ def engineer_features(df):
 
 def train_and_evaluate(features_df, outdir):
     """Train classifier and evaluate with leave-one-out cross validation."""
-    
+
+    # Filter to only healthy and cancer for binary classification
+    features_df = features_df[features_df['condition'].isin(['healthy', 'cancer'])].copy()
+    print(f"\nFiltered to {len(features_df)} samples (healthy + cancer only)")
+
+    # Deduplicate — IH02/SRR2130051 and IH03/SRR2130052 are the same samples
+    features_df = features_df[~features_df['sample'].isin(['IC17_liver', 'IC26_prostate', 'IH02_healthy', 'IH03_healthy'])].copy()
+
     feature_cols = [
         'short_ratio', 'long_ratio', 'short_long_ratio',
         'mean_length', 'std_length', 'median_length'
     ]
-    
+
     X = features_df[feature_cols].values
     y = (features_df['condition'] == 'cancer').astype(int).values
     samples = features_df['sample'].values
-    
+
+    # Scale features and use pipeline for clean cross-validation
+    clf = Pipeline([
+        ('scaler', StandardScaler()),
+        ('clf', LogisticRegression(random_state=42, max_iter=1000))
+    ])
+
     # Leave-one-out CV (appropriate for small sample sizes)
-    clf = LogisticRegression(random_state=42)
     loo = LeaveOneOut()
     y_prob = cross_val_predict(clf, X, y, cv=loo, method='predict_proba')[:, 1]
     y_pred = (y_prob >= 0.5).astype(int)
-    
+
     # Print classification report
     print("\n=== Classification Report ===")
     print(classification_report(y, y_pred, target_names=['healthy', 'cancer']))
-    
+
     # Save predictions
     results_df = pd.DataFrame({
-        'sample':    samples,
-        'condition': features_df['condition'].values,
+        'sample':     samples,
+        'condition':  features_df['condition'].values,
         'true_label': y,
         'pred_prob':  y_prob,
         'pred_label': y_pred
     })
     results_df.to_csv(os.path.join(outdir, 'predictions.csv'), index=False)
     print(f"\nPredictions saved to {outdir}/predictions.csv")
-    
+
     return y, y_prob, features_df
 
 
@@ -127,7 +140,7 @@ def plot_fragment_distributions(df, outdir):
     """Plot fragment length distributions for cancer vs healthy."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    colors = {'healthy': '#2196F3', 'cancer': '#F44336'}
+    colors = {'healthy': '#2196F3', 'cancer': '#F44336', 'other': '#4CAF50'}
     
     for condition, group in df.groupby('condition'):
         ax.hist(
@@ -175,7 +188,7 @@ def plot_feature_distributions(features_df, outdir):
     """Plot key features by condition."""
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     
-    colors = {'healthy': '#2196F3', 'cancer': '#F44336'}
+    colors = {'healthy': '#2196F3', 'cancer': '#F44336', 'other': '#4CAF50'}
     features = ['short_long_ratio', 'mean_length', 'short_ratio']
     titles = ['Short/Long Ratio', 'Mean Fragment Length', 'Short Fragment Ratio']
     
