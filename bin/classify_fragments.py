@@ -88,35 +88,36 @@ def engineer_features(df):
 def train_and_evaluate(features_df, outdir):
     """Train classifier and evaluate with leave-one-out cross validation."""
 
-    # Filter to only healthy and cancer for binary classification
-    features_df = features_df[features_df['condition'].isin(['healthy', 'cancer'])].copy()
-    print(f"\nFiltered to {len(features_df)} samples (healthy + cancer only)")
-
-    # Deduplicate — IH02/SRR2130051 and IH03/SRR2130052 are the same samples
-    features_df = features_df[~features_df['sample'].isin(['IC17_liver', 'IC26_prostate', 'IH02_healthy', 'IH03_healthy'])].copy()
-
     feature_cols = [
         'short_ratio', 'long_ratio', 'short_long_ratio',
         'mean_length', 'std_length', 'median_length'
     ]
 
+    # Filter to healthy and cancer only, remove duplicates
+    features_df = features_df[features_df['condition'].isin(['healthy', 'cancer'])].copy()
+    features_df = features_df[~features_df['sample'].isin(['IC17_liver', 'IC26_prostate', 'IH02_healthy', 'IH03_healthy'])].copy()
+    print(f"\nFiltered to {len(features_df)} samples (healthy + cancer only)")
+
     X = features_df[feature_cols].values
     y = (features_df['condition'] == 'cancer').astype(int).values
     samples = features_df['sample'].values
 
-    # Scale features and use pipeline for clean cross-validation
-    clf = Pipeline([
-        ('scaler', StandardScaler()),
-        ('clf', LogisticRegression(random_state=42, max_iter=1000))
-    ])
-
-    # Leave-one-out CV (appropriate for small sample sizes)
+    # Leakage-free LOO — fit scaler inside each fold
     loo = LeaveOneOut()
-    y_prob = cross_val_predict(clf, X, y, cv=loo, method='predict_proba')[:, 1]
+    y_prob = np.zeros(len(y))
+
+    for train_idx, test_idx in loo.split(X):
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X[train_idx])
+        X_test  = scaler.transform(X[test_idx])
+
+        clf = LogisticRegression(random_state=42, max_iter=1000)
+        clf.fit(X_train, y[train_idx])
+        y_prob[test_idx] = clf.predict_proba(X_test)[:, 1]
+
     y_pred = (y_prob >= 0.5).astype(int)
 
-    # Print classification report
-    print("\n=== Classification Report ===")
+    print("\n=== Logistic Regression Classification Report ===")
     print(classification_report(y, y_pred, target_names=['healthy', 'cancer']))
 
     # Save predictions
