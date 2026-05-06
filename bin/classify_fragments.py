@@ -22,6 +22,7 @@ from sklearn.metrics import roc_curve, auc, classification_report
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
 
 # ─────────────────────────────────────────────
 # 1. LOAD DATA
@@ -206,6 +207,77 @@ def plot_feature_distributions(features_df, outdir):
     print(f"Feature distributions plot saved to {path}")
     plt.close()
 
+def train_random_forest(features_df, outdir):
+    """Train Random Forest classifier and plot feature importances."""
+
+    feature_cols = [
+        'short_ratio', 'long_ratio', 'short_long_ratio',
+        'mean_length', 'std_length', 'median_length'
+    ]
+
+    # Filter to healthy and cancer only
+    features_df = features_df[features_df['condition'].isin(['healthy', 'cancer'])].copy()
+    features_df = features_df[~features_df['sample'].isin(['IC17_liver', 'IC26_prostate', 'IH02_healthy', 'IH03_healthy'])].copy()
+
+    X = features_df[feature_cols].values
+    y = (features_df['condition'] == 'cancer').astype(int).values
+    samples = features_df['sample'].values
+
+    # Leave-one-out CV with Random Forest
+    clf = RandomForestClassifier(n_estimators=500, random_state=42, class_weight='balanced')
+    loo = LeaveOneOut()
+    y_prob = cross_val_predict(clf, X, y, cv=loo, method='predict_proba')[:, 1]
+    y_pred = (y_prob >= 0.5).astype(int)
+
+    print("\n=== Random Forest Classification Report ===")
+    print(classification_report(y, y_pred, target_names=['healthy', 'cancer']))
+
+    # Save predictions
+    results_df = pd.DataFrame({
+        'sample':     samples,
+        'condition':  features_df['condition'].values,
+        'true_label': y,
+        'pred_prob':  y_prob,
+        'pred_label': y_pred
+    })
+    results_df.to_csv(os.path.join(outdir, 'rf_predictions.csv'), index=False)
+
+    # Train on full dataset for feature importance
+    clf_full = RandomForestClassifier(n_estimators=500, random_state=42, class_weight='balanced')
+    clf_full.fit(X, y)
+
+    # Plot feature importances
+    importances = clf_full.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    sorted_features = [feature_cols[i] for i in indices]
+    sorted_importances = importances[indices]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Feature importance bar plot
+    axes[0].barh(sorted_features[::-1], sorted_importances[::-1],
+                 color='#9C27B0', alpha=0.8)
+    axes[0].set_xlabel('Feature Importance (Gini)', fontsize=12)
+    axes[0].set_title('Random Forest Feature Importances', fontsize=13)
+
+    # ROC curve
+    fpr, tpr, _ = roc_curve(y, y_prob)
+    roc_auc = auc(fpr, tpr)
+    axes[1].plot(fpr, tpr, color='#9C27B0', lw=2,
+                 label=f'Random Forest (AUC = {roc_auc:.2f})')
+    axes[1].plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--')
+    axes[1].set_xlabel('False Positive Rate', fontsize=12)
+    axes[1].set_ylabel('True Positive Rate', fontsize=12)
+    axes[1].set_title('ROC Curve: Random Forest', fontsize=13)
+    axes[1].legend(fontsize=11)
+
+    plt.tight_layout()
+    path = os.path.join(outdir, 'random_forest_results.png')
+    plt.savefig(path, dpi=150)
+    print(f"Random Forest results saved to {path}")
+    plt.close()
+
+    return y, y_prob
 
 # ─────────────────────────────────────────────
 # 5. MAIN
@@ -238,6 +310,9 @@ def main():
     plot_fragment_distributions(df, args.outdir)
     plot_roc_curve(y_true, y_prob, args.outdir)
     plot_feature_distributions(features_df, args.outdir)
+
+    print("\nTraining Random Forest...")
+    train_random_forest(features_df, args.outdir)
     
     print("\nDone!")
 
