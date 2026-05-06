@@ -111,9 +111,23 @@ python bin/classify_fragments.py \
 
 ## Methods
 
+### Why Nextflow?
+
+This pipeline is implemented in Nextflow for three key reasons:
+
+**Parallelization** — all 60 samples are processed simultaneously rather than sequentially. FASTQC, adapter trimming, alignment, and fragment length extraction run concurrently across samples, with Nextflow automatically managing task scheduling based on available compute resources.
+
+**Reproducibility** — every process runs in a containerized environment (Docker) with pinned tool versions. Results are identical across machines and over time, which is critical for clinical and research applications.
+
+**Scalability** — the same pipeline code runs locally on a laptop or on hundreds of cores on AWS Batch with only a configuration change. No rewriting required to scale from development to production.
+
+**Resumability** — if a run fails partway through, `-resume` restarts only the failed processes, not the entire pipeline. For long multi-sample runs this is essential.
+
+These properties make Nextflow the standard for production bioinformatics pipelines, particularly in regulated clinical environments (CAP/CLIA) where reproducibility and auditability are requirements.
+
 ### Fragment length extraction
 
-Paired-end reads are filtered by mapping quality (MAPQ ≥ 20) and fragment length (100-220bp). Fragment lengths are extracted from the TLEN field (column 9) of the SAM format.
+Paired-end reads are filtered by mapping quality (MAPQ ≥ 20) and fragment length (100-220bp). Fragment lengths are extracted from the TLEN field (column 9) of the SAM format, which represents the inferred insert size for properly paired reads.
 
 ### ML features
 
@@ -131,6 +145,12 @@ Per-sample features engineered from fragment length distributions:
 ### Classification
 
 Logistic regression with StandardScaler normalization, evaluated by leave-one-out cross validation. Binary classification: cancer (1) vs healthy (0).
+
+### Limitations
+
+- Analysis is restricted to chromosome 22 for local development. Full genome analysis on AWS is expected to significantly improve classifier specificity.
+- The healthy cohort is small (n=3 unique samples), limiting evaluation of specificity. The original paper used deep WGS coverage; this analysis uses 1M reads per sample.
+- Fragment length alone is a coarse feature. The original Snyder et al. analysis used nucleosome positioning and windowed protection scores for tissue-of-origin inference, which is a planned extension of this work.
 
 ---
 
