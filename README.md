@@ -47,23 +47,35 @@ Raw FASTQ (SRA)
 
 ### Fragment Length Distributions
 
-cfDNA from cancer patients shows enrichment of short fragments (100-150bp) compared to healthy individuals, consistent with Snyder et al. (2016).
+cfDNA from cancer patients shows enrichment of short fragments (100-150bp) compared to healthy individuals, consistent with Snyder et al. (2016). The crossover point at ~167bp — the chromatosome length — separates cancer-enriched from healthy-enriched fragment lengths.
 
-![Fragment Length Distributions](docs/images/fragment_length_distributions.png)
+![Fragment Length Comparison](docs/images/periodicity_comparison.png)
+
+### Nucleosome Periodicity
+
+At 1bp resolution, the healthy cfDNA distribution shows visible oscillations consistent with ~10bp nucleosome helical pitch periodicity, as described in Snyder et al. (2016). This signal is dampened in cancer samples, reflecting disrupted nucleosome positioning in tumor-derived cfDNA.
+
+![Nucleosome Periodicity](docs/images/nucleosome_periodicity.png)
 
 ### ML Classification
 
-A logistic regression classifier trained on fragment length features (short/long ratio, mean length, standard deviation) was evaluated using leave-one-out cross validation across 51 samples (48 cancer, 3 healthy).
+Fragment length features were used to train two classifiers evaluated by leave-one-out cross validation across 51 samples (48 cancer, 3 healthy). Random Forest outperformed Logistic Regression, with `short_long_ratio` identified as the most discriminative feature — consistent with the biological hypothesis that tumor-derived cfDNA is enriched in short fragments.
+
+![Random Forest Results](docs/images/random_forest_results.png)
+
+| Metric | Logistic Regression | Random Forest |
+|--------|-------------------|---------------|
+| AUC | 0.61 | 0.74 |
+| Cancer sensitivity | 48/48 (100%) | 46/48 (96%) |
+| Healthy specificity | 1/3 (33%) | 0/3 (0%) |
+
+**Key finding:** `short_long_ratio` (fraction of fragments 100-150bp vs 151-220bp) is the most important feature for cancer classification, followed by `short_ratio` and `long_ratio`. Mean and median fragment length are less discriminative, suggesting the shape of the fragment length distribution carries more signal than its central tendency.
+
+**Limitations:** The small healthy cohort (n=3 unique samples) and chr22-only analysis limit specificity evaluation. Full genome analysis on AWS with the complete read depth is expected to significantly improve performance, consistent with the original paper which reported AUC >0.9 with deep WGS.
+
+### ROC Curve Comparison
 
 ![ROC Curve](docs/images/roc_curve.png)
-
-| Metric | Value |
-|--------|-------|
-| Cancer sensitivity | 48/48 (100%) |
-| Healthy specificity | 1/3 (33%) |
-| AUC | 0.61 |
-
-**Limitations:** The small healthy cohort (n=3 unique samples) and chr22-only analysis limit specificity. Full genome analysis on the complete dataset is expected to significantly improve performance, consistent with the original paper.
 
 ---
 
